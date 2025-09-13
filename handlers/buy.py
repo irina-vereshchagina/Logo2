@@ -2,6 +2,12 @@ from aiogram import types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from services.payment_service import create_payment, check_payment
 from utils.user_roles import set_user_role
+from utils.user_state import set_user_state, STATE_MENU
+
+async def buy_menu(message: types.Message):
+    set_user_state(message.from_user.id, STATE_MENU)  # оставить в меню
+    await message.answer("Выберите тариф для покупки:\n1. BASIC — 999 ₽\n2. PRO — 1999 ₽")
+
 
 # меню выбора тарифа
 async def buy_menu(message: types.Message):
