@@ -7,12 +7,11 @@ from utils.user_state import set_user_state, STATE_MENU
 # меню выбора тарифа
 async def buy_menu(message: types.Message):
     set_user_state(message.from_user.id, STATE_MENU)  # оставить в меню
-buttons = [
-    [KeyboardButton(text="Купить BASIC — 999 ₽")],
-    [KeyboardButton(text="Купить PRO — 1999 ₽")],
-    [KeyboardButton(text="⬅️ Назад")],
-]
-
+    buttons = [
+        [KeyboardButton(text="Купить BASIC — 999 ₽")],
+        [KeyboardButton(text="Купить PRO — 1999 ₽")],
+        [KeyboardButton(text="⬅️ Назад")],
+    ]
     kb = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
     await message.answer("Выберите тариф для покупки:", reply_markup=kb)
 
