@@ -26,10 +26,4 @@ async def handle_buy(message: types.Message):
         return
 
     url, payment_id = create_payment(amount, f"Покупка {role}", return_url="https://t.me/your_bot")
-    # TODO: сохранить payment_id и выбранный тариф (например, в файл или БД)
     await message.answer(f"Для оплаты перейдите по ссылке: {url}")
-
-    # ⚡ вариант авто-проверки (по команде /check или через background-job)
-    # if check_payment(payment_id):
-    #     set_user_role(message.from_user.id, role)
-    #     await message.answer(f"✅ Оплата успешна! Тариф {role} активирован.")
