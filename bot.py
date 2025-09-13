@@ -9,6 +9,8 @@ from config import TELEGRAM_BOT_TOKEN
 from handlers import start, info, prompt, generation, vectorize
 from utils.user_state import get_user_state, STATE_GENERATE, STATE_VECTORIZE, STATE_MENU
 from utils.user_roles import load_db
+from handlers import buy
+
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("aiogram.event").setLevel(logging.DEBUG)
@@ -38,6 +40,9 @@ dp.message.register(prompt.prompt_for_idea, lambda m: m.text == "🎨 Генер
 dp.message.register(vectorize.ask_for_image, lambda m: m.text == "🖼 Векторизация")
 dp.message.register(vectorize.handle_vectorization_image, is_vectorization_photo)
 dp.message.register(generation.handle_idea, is_generate_text)
+dp.message.register(buy.buy_menu, lambda m: "Купить тариф" in (m.text or ""))
+dp.message.register(buy.handle_buy, lambda m: "Купить" in (m.text or ""))
+
 
 @dp.message()
 async def fallback_handler(message):
