@@ -8,9 +8,10 @@ DB_PATH = "limits_db.json"
 db_lock = Lock()
 
 ROLE_LIMITS = {
-    "user_free": {"generations": 5, "vectorizations": 0},
-    "user_basic": {"generations": 10, "vectorizations": 1},
-    "user_pro": {"generations": 25, "vectorizations": 3},
+    "demo": {"generations": 5, "vectorizations": 0},          # 0 ₽
+    "start": {"generations": 10, "vectorizations": 0},        # 999 ₽
+    "standard-15": {"generations": 15, "vectorizations": 1},  # 1999 ₽
+    "standard-30": {"generations": 30, "vectorizations": 3},  # 2999 ₽
     "admin": {"generations": float("inf"), "vectorizations": float("inf")},
 }
 
