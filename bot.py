@@ -46,7 +46,6 @@ dp.message.register(
     lambda m: m.text and ("BASIC" in m.text or "PRO" in m.text)
 )
 
-
 @dp.message()
 async def fallback_handler(message):
     state = get_user_state(message.from_user.id)
