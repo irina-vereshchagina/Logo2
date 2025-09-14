@@ -40,8 +40,11 @@ dp.message.register(prompt.prompt_for_idea, lambda m: m.text == "🎨 Генер
 dp.message.register(vectorize.ask_for_image, lambda m: m.text == "🖼 Векторизация")
 dp.message.register(vectorize.handle_vectorization_image, is_vectorization_photo)
 dp.message.register(generation.handle_idea, is_generate_text)
-dp.message.register(buy.buy_menu, lambda m: "Купить тариф" in (m.text or ""))
-dp.message.register(buy.handle_buy, lambda m: "Купить" in (m.text or ""))
+dp.message.register(buy.buy_menu, lambda m: m.text and "Купить тариф" in m.text)
+dp.message.register(
+    buy.handle_buy,
+    lambda m: m.text and ("BASIC" in m.text or "PRO" in m.text)
+)
 
 
 @dp.message()
