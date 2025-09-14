@@ -1,8 +1,9 @@
 from aiogram import types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from services.payment_service import create_payment, check_payment
-from utils.user_roles import set_user_role
+
+from services.payment_service import create_payment
 from utils.user_state import set_user_state, STATE_MENU
+from utils.payments import add_payment  # новый импорт
 
 # меню выбора тарифа
 async def buy_menu(message: types.Message):
@@ -25,5 +26,14 @@ async def handle_buy(message: types.Message):
         await message.answer("❌ Такой тариф не найден")
         return
 
-    url, payment_id = create_payment(amount, f"Покупка {role}", return_url="https://t.me/your_bot")
+    # создаём платёж и получаем id
+    url, payment_id = create_payment(
+        amount,
+        f"Покупка {role}",
+        return_url="https://t.me/your_bot"
+    )
+    # сохраняем payment_id и роль для последующей проверки
+    add_payment(message.from_user.id, payment_id, role)
+
+    # отправляем ссылку на оплату
     await message.answer(f"Для оплаты перейдите по ссылке: {url}")
