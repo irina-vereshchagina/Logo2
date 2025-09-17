@@ -25,7 +25,7 @@ async def generate_image(prompt: str) -> BytesIO:
     prompt_dalle = chat.choices[0].message.content.strip()
 
     image_response = client.images.generate(
-        model="dall-e-3",
+        model="gpt-image-1",
         prompt=prompt_dalle,
         n=1,
         size="1024x1024",
