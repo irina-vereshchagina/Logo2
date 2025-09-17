@@ -15,9 +15,9 @@ async def generate_image(prompt: str) -> BytesIO:
     client = OpenAI(api_key=OPENAI_API_KEY)
 
     chat = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-image-1",
         messages=[
-            {"role": "system", "content": "Ты создаешь промпт для генерации логотипа через DALL·E 3."},
+            {"role": "system", "content": "Ты создаешь промпт для генерации логотипа через gpt-image-1"},
             {"role": "user", "content": prompt}
         ]
     )
