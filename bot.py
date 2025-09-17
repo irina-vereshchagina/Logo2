@@ -65,7 +65,7 @@ async def fallback_handler(message):
     state = get_user_state(message.from_user.id)
     if state == STATE_MENU:
         await message.answer(
-            "❗️Вы сейчас в главном меню. Пожалуйста, выберите действие кнопкой ниже."
+            "Вы сейчас в главном меню. Пожалуйста, выберите действие кнопкой ниже."
         )
     elif state == STATE_GENERATE:
         await message.answer("❗️Ожидается текстовая идея логотипа.")
