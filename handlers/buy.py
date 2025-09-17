@@ -45,4 +45,13 @@ async def handle_buy(message: types.Message):
         return
 
     add_payment(message.from_user.id, payment_id, role)
-    await message.answer(f"Для оплаты перейдите по ссылке: {url}")
+
+confirm_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="✅ Я оплатил")],
+        [KeyboardButton(text="⬅️ В меню")],
+    ],
+    resize_keyboard=True,
+)
+await message.answer(f"Для оплаты перейдите по ссылке: {url}")
+await message.answer("После успешной оплаты нажмите «✅ Я оплатил».", reply_markup=confirm_kb)
