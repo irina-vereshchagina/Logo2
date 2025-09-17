@@ -36,10 +36,15 @@ def is_vectorization_photo(message):
         and get_user_state(message.from_user.id) == STATE_VECTORIZE
     )
 
+# Универсальная кнопка "назад" / "в меню"
+def is_back(m):
+    t = (m.text or "").replace("\uFE0F", "").strip()  # убираем вариационный селектор эмодзи
+    return t in ("⬅️ В меню", "⬅️ Назад", "Назад")
+
 # Регистрация хендлеров
 dp.message.register(start.start, CommandStart())
 dp.message.register(start.setrole_command, Command(commands=["setrole"]))
-dp.message.register(start.start, lambda m: m.text == "⬅️ В меню")
+dp.message.register(start.start, is_back)  # ← заменили точечный фильтр на универсальный
 dp.message.register(info.info, lambda m: m.text == "ℹ️ Информация")
 dp.message.register(prompt.prompt_for_idea, lambda m: m.text == "🎨 Генерация логотипа")
 dp.message.register(vectorize.ask_for_image, lambda m: m.text == "🖼 Векторизация")
