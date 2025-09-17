@@ -45,11 +45,16 @@ def is_back(m):
     t = (m.text or "").replace("\uFE0F", "").strip()
     return t in ("⬅️ В меню", "⬅️ Назад", "Назад")
 
-# Регистрация хендлеров
+# ================== Регистрация хендлеров ==================
+
+# Старт/админ
 dp.message.register(start.start, CommandStart())
 dp.message.register(start.setrole_command, Command(commands=["setrole"]))
+
+# Назад — ставим ВЫШЕ остальных текстовых обработчиков
 dp.message.register(start.start, is_back)
 
+# Разделы
 dp.message.register(info.info, lambda m: m.text == "ℹ️ Информация")
 dp.message.register(prompt.prompt_for_idea, lambda m: m.text == "🎨 Генерация логотипа")
 dp.message.register(vectorize.ask_for_image, lambda m: m.text == "🖼 Векторизация")
@@ -63,10 +68,11 @@ dp.message.register(
     lambda m: m.text and ("BASIC" in m.text or "PRO" in m.text)
 )
 
-# Проверка оплаты
+# Проверка оплаты: команда и кнопка "✅ Я оплатил"
 dp.message.register(check_payment_command, Command(commands=["check"]))
-dp.message.register(check_payment_button, lambda m: m.text == CHECK_BUTTON_TEXT)  # "✅ Я оплатил"
+dp.message.register(check_payment_button, lambda m: m.text == CHECK_BUTTON_TEXT)
 
+# Фолбэк
 @dp.message()
 async def fallback_handler(message):
     state = get_user_state(message.from_user.id)
@@ -79,7 +85,8 @@ async def fallback_handler(message):
     else:
         await message.answer("❓ Непонятное состояние. Нажмите '⬅️ В меню'.")
 
+# ================== Точка входа ==================
 if __name__ == "__main__":
-    load_db()        # загрузка базы пользователей
+    load_db()        # загрузка базы пользователей/ролей
     load_payments()  # загрузка ожидающих платежей
     asyncio.run(dp.start_polling(bot))
