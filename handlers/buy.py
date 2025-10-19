@@ -1,7 +1,7 @@
 from aiogram import types
 import logging
 
-from services.payment_service import create_payment, check_payment
+from services.payment_service import create_payment, is_payment_succeeded_with_amount, get_payment_info
 from utils.user_state import set_user_state, STATE_MENU
 from utils.payments import add_payment, get_payment, remove_payment
 from utils.user_roles import set_user_role
@@ -14,12 +14,19 @@ from keyboards import (
 
 log = logging.getLogger(__name__)
 
+TARIFFS = {
+    "user_basic": {"amount": 999,  "desc": "Покупка user_basic"},
+    "user_pro":   {"amount": 1999, "desc": "Покупка user_pro"},
+}
 
-# Меню выбора тарифа
+def _detect_tariff(text: str) -> tuple[int, str] | None:
+    if "BASIC" in text:
+        return TARIFFS["user_basic"]["amount"], "user_basic"
+    if "PRO" in text:
+        return TARIFFS["user_pro"]["amount"], "user_pro"
+    return None
+
 async def buy_menu(message: types.Message):
-    """
-    Открывает меню с тарифами. Возврат в главное меню — кнопкой «⬅️ В меню».
-    """
     set_user_state(message.from_user.id, STATE_MENU)
     await message.answer(
         "Тарифы:\n"
@@ -29,36 +36,32 @@ async def buy_menu(message: types.Message):
         reply_markup=get_payment_keyboard(),
     )
 
-
-# Обработка клика по тарифу (создание платежа)
 async def handle_buy(message: types.Message):
     text = (message.text or "")
-
-    if "BASIC" in text:
-        amount, role = 999, "user_basic"
-    elif "PRO" in text:
-        amount, role = 1999, "user_pro"
-    else:
+    detected = _detect_tariff(text)
+    if not detected:
         await message.answer("❌ Такой тариф не найден", reply_markup=get_back_keyboard())
         return
 
+    amount, role = detected
     try:
         url, payment_id = create_payment(
-            amount,
-            f"Покупка {role}",
-            # при желании замените на ссылку вашего бота
+            amount=amount,
+            description=TARIFFS[role]["desc"],
             return_url="https://t.me/Logozavod_Bot",
+            user_id=message.from_user.id,
+            role=role,
         )
     except Exception:
         log.exception("Ошибка создания платежа")
         await message.answer(
-            "❌ Не удалось создать платёж. Проверьте настройки ЮKassa и попробуйте ещё раз.",
+            "❌ Не удалось создать платёж. Проверьте настройки YooKassa и попробуйте ещё раз.",
             reply_markup=get_back_keyboard(),
         )
         return
 
-    # Сохраняем платёж и показываем клавиатуру подтверждения
-    add_payment(message.from_user.id, payment_id, role)
+    # сохраняем платёж (с ожидаемой суммой!) и показываем клавиатуру подтверждения
+    add_payment(message.from_user.id, payment_id, role, expected_amount=str(amount))
 
     await message.answer(f"Для оплаты перейдите по ссылке: {url}")
     await message.answer(
@@ -66,8 +69,6 @@ async def handle_buy(message: types.Message):
         reply_markup=get_confirm_payment_keyboard(),
     )
 
-
-# Подтверждение оплаты (меняем роль и возвращаемся в главное меню)
 async def confirm_payment(message: types.Message):
     if (message.text or "").strip() != "✅ Я оплатил":
         return
@@ -83,13 +84,18 @@ async def confirm_payment(message: types.Message):
         return
 
     payment_id = data["payment_id"]
-    new_role = data["role"]
+    new_role   = data["role"]
+    expected   = data["expected_amount"]
 
+    # Жёсткая проверка: статус + сумма в рублях
+    ok = is_payment_succeeded_with_amount(payment_id, expected_rub=expected)
+
+    # (опционально) Логируем, что вернула YooKassa
     try:
-        ok = check_payment(payment_id)
+        info = get_payment_info(payment_id)
+        log.info("Payment info for user %s: %s", user_id, info)
     except Exception:
-        log.exception("Ошибка проверки платежа")
-        ok = False
+        pass
 
     if ok:
         set_user_role(user_id, new_role)
@@ -100,6 +106,6 @@ async def confirm_payment(message: types.Message):
         )
     else:
         await message.answer(
-            "⏳ Платёж ещё не подтверждён. Проверьте оплату и попробуйте ещё раз.",
+            "⏳ Платёж ещё не подтверждён или сумма не совпадает. Проверьте оплату и попробуйте ещё раз.",
             reply_markup=get_confirm_payment_keyboard(),
         )
