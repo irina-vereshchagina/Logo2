@@ -1,63 +1,72 @@
-# handlers/buy.py
-from aiogram import types
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import logging
+import asyncio
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+from aiogram.filters import CommandStart, Command
+from aiogram.fsm.storage.memory import MemoryStorage
 
-from services.payment_service import create_payment
-from utils.user_state import set_user_state, STATE_MENU
-from utils.payments import add_payment
+from config import TELEGRAM_BOT_TOKEN
+from handlers import start, info, prompt, generation, vectorize, buy
+from utils.user_state import get_user_state, STATE_GENERATE, STATE_VECTORIZE, STATE_MENU
+from utils.user_roles import load_db
 
-# Меню тарифов (как в остальных разделах: "⬅️ В меню")
-async def buy_menu(message: types.Message):
-    set_user_state(message.from_user.id, STATE_MENU)
-    kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="Купить BASIC — 999 ₽")],
-            [KeyboardButton(text="Купить PRO — 1999 ₽")],
-            [KeyboardButton(text="⬅️ В меню")],   # одинаково с другими разделами
-        ],
-        resize_keyboard=True
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("aiogram.event").setLevel(logging.DEBUG)
+
+defaults = DefaultBotProperties(parse_mode=ParseMode.HTML)
+bot = Bot(token=TELEGRAM_BOT_TOKEN, default=defaults)
+dp = Dispatcher(storage=MemoryStorage())
+
+def is_generate_text(message):
+    return (
+        message.text
+        and not message.text.startswith("/")
+        and get_user_state(message.from_user.id) == STATE_GENERATE
     )
-    await message.answer(
-        "Тарифы:\n"
-        "• BASIC — 10 генераций, 1 SVG\n"
-        "• PRO — 20 генераций, 2 SVG\n\n"
-        "Выберите тариф:",
-        reply_markup=kb
+
+def is_vectorization_photo(message):
+    return (
+        message.photo
+        and get_user_state(message.from_user.id) == STATE_VECTORIZE
     )
 
-# Покупка
-async def handle_buy(message: types.Message):
-    if "BASIC" in (message.text or ""):
-        amount, role = 999, "user_basic"
-    elif "PRO" in (message.text or ""):
-        amount, role = 1999, "user_pro"
+# === Регистрация хендлеров ===
+# Базовые
+dp.message.register(start.start, CommandStart())
+dp.message.register(start.setrole_command, Command(commands=["setrole"]))
+
+# Глобальная "Назад" (эта строка чинит ваш кейс)
+dp.message.register(start.start, lambda m: m.text == "⬅️ В меню")
+
+# Инфо
+dp.message.register(info.info, lambda m: m.text == "ℹ️ Информация")
+
+# Главные разделы
+dp.message.register(prompt.prompt_for_idea, lambda m: m.text == "🎨 Генерация логотипа")
+dp.message.register(vectorize.ask_for_image,   lambda m: m.text == "🖼 Векторизация")
+
+# Оплата: открытие меню и выбор тарифа
+dp.message.register(buy.buy_menu,   lambda m: m.text == "💰 Купить тариф")
+dp.message.register(buy.handle_buy, lambda m: (m.text or "").startswith("Купить"))
+
+# Обработчики ввода в состояниях
+dp.message.register(vectorize.handle_vectorization_image, is_vectorization_photo)
+dp.message.register(generation.handle_idea,               is_generate_text)
+
+# Фоллбек по текущему "ручному" состоянию
+@dp.message()
+async def fallback_handler(message):
+    state = get_user_state(message.from_user.id)
+    if state == STATE_MENU:
+        await message.answer("❗️Вы сейчас в главном меню. Пожалуйста, выберите действие кнопкой ниже.")
+    elif state == STATE_GENERATE:
+        await message.answer("❗️Ожидается текстовая идея логотипа.")
+    elif state == STATE_VECTORIZE:
+        await message.answer("❗️Ожидается изображение (фото) для векторизации.")
     else:
-        await message.answer("❌ Такой тариф не найден")
-        return
+        await message.answer("❓ Непонятное состояние. Нажмите '⬅️ В меню'.")
 
-    try:
-        url, payment_id = create_payment(
-            amount,
-            f"Покупка {role}",
-            return_url="https://t.me/your_bot"  # при необходимости смените на @имя_вашего_бота
-        )
-    except Exception:
-        logging.exception("Ошибка создания платежа")
-        await message.answer("❌ Не удалось создать платёж. Проверьте настройки ЮKassa и попробуйте ещё раз.")
-        return
-
-    # сохраняем платёж
-    add_payment(message.from_user.id, payment_id, role)
-
-    # клавиатура как в остальных разделах: есть "⬅️ В меню" + кнопка подтверждения
-    confirm_kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="✅ Я оплатил")],
-            [KeyboardButton(text="⬅️ В меню")],
-        ],
-        resize_keyboard=True,
-    )
-
-    await message.answer(f"Для оплаты перейдите по ссылке: {url}")
-    await message.answer("После успешной оплаты нажмите «✅ Я оплатил».", reply_markup=confirm_kb)
+if __name__ == "__main__":
+    load_db()
+    asyncio.run(dp.start_polling(bot))
