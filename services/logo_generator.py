@@ -9,16 +9,15 @@ load_dotenv()
 # === Флаги и ключи ===
 USE_PLACEHOLDER = os.getenv("USE_PLACEHOLDER", "false").strip().lower() == "true"
 
-# Ключ и базовый URL OpenRouter (приоритет у OpenRouter, иначе можно оставить OPENAI_API_KEY)
+# Приоритет OpenRouter; можно оставить OPENAI_API_KEY как запасной вариант
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
 OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").strip()
 
-# Доп. заголовки (необязательно, но рекомендуются OpenRouter для аналитики)
+# Доп. заголовки для OpenRouter (опционально)
 OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "")
 OPENROUTER_APP_NAME = os.getenv("OPENROUTER_APP_NAME", "Logo2 Bot")
 
-# Модели можно переопределить в .env
-# для текста (рефайн промпта) и для картинок
+# Модели (можно менять в .env)
 TEXT_MODEL = os.getenv("OPENROUTER_TEXT_MODEL", "openai/gpt-4.1-mini")
 IMAGE_MODEL = os.getenv("OPENROUTER_IMAGE_MODEL", "openai/gpt-image-1")
 
@@ -34,17 +33,17 @@ def _placeholder_image() -> BytesIO:
 async def generate_image(user_prompt: str) -> BytesIO:
     """
     Генерация изображения логотипа.
-      • Если USE_PLACEHOLDER=true или нет ключа — вернёт плейсхолдер.
-      • Иначе: 1) уточнит промпт через /v1/responses (TEXT_MODEL),
-               2) сгенерирует картинку через Images API (IMAGE_MODEL).
+      • Если USE_PLACEHOLDER=true или нет ключа — вернуть плейсхолдер.
+      • Иначе: 1) уточнить промпт через /v1/responses (TEXT_MODEL),
+               2) сгенерировать картинку через Images API (IMAGE_MODEL).
     Возвращает BytesIO с PNG/JPEG.
     """
     if USE_PLACEHOLDER or not OPENROUTER_API_KEY:
         return _placeholder_image()
 
+    # OpenAI-клиент совместим с OpenRouter
     from openai import OpenAI
 
-    # Заголовки OpenRouter (опционально)
     default_headers = {}
     if OPENROUTER_SITE_URL:
         default_headers["HTTP-Referer"] = OPENROUTER_SITE_URL
@@ -57,7 +56,7 @@ async def generate_image(user_prompt: str) -> BytesIO:
         default_headers=default_headers or None,
     )
 
-    # 1) Уточняем/сжимаем промпт (новый endpoint: /v1/responses)
+    # 1) Уточняем/сжимаем промпт
     try:
         refine = client.responses.create(
             model=TEXT_MODEL,
@@ -77,8 +76,7 @@ async def generate_image(user_prompt: str) -> BytesIO:
     except Exception:
         refined_prompt = user_prompt
 
-    # 2) Генерация изображения (Images API).
-    # OpenRouter для openai-совместимых моделей отдаёт либо url, либо b64_json.
+    # 2) Генерация изображения
     try:
         img = client.images.generate(
             model=IMAGE_MODEL,
@@ -92,8 +90,9 @@ async def generate_image(user_prompt: str) -> BytesIO:
     data0 = img.data[0]
 
     # Вариант с URL
-    if getattr(data0, "url", None):
-        resp = requests.get(data0.url, timeout=60)
+    url = getattr(data0, "url", None)
+    if url:
+        resp = requests.get(url, timeout=60)
         resp.raise_for_status()
         return BytesIO(resp.content)
 
