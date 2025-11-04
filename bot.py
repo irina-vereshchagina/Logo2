@@ -85,6 +85,17 @@ async def fallback_handler(message):
 
 # --- Точка входа ---
 if __name__ == "__main__":
-    load_db()         # мини-БД ролей/лимитов
-    load_payments()   # подхват незавершённых платежей после рестарта
-    asyncio.run(dp.start_polling(bot))
+    import asyncio
+
+    print(">>> ENTRY")
+    load_db()
+    load_payments()
+
+    async def _main():
+        print(">>> START POLLING")
+        await dp.start_polling(
+            bot,
+            allowed_updates=dp.resolve_used_update_types(),
+        )
+
+    asyncio.run(_main())
